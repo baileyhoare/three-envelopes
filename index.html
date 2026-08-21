@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>For you</title>
+<style>
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f4f1ea;
+    font-family: Georgia, 'Times New Roman', serif;
+    padding: 24px;
+    box-sizing: border-box;
+  }
+  .card {
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: normal;
+    color: #2c2c2a;
+    margin-bottom: 8px;
+  }
+  p.sub {
+    color: #6b6a63;
+    font-size: 14px;
+    margin-bottom: 32px;
+  }
+  .envelopes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  button.envelope {
+    height: 120px;
+    border-radius: 10px;
+    border: 1px solid #d3d1c7;
+    background: #ffffff;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-family: inherit;
+    font-size: 14px;
+    color: #2c2c2a;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+  button.envelope:hover:not(:disabled) {
+    transform: scale(1.03);
+    background: #faf8f2;
+  }
+  button.envelope:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+  button.envelope.chosen {
+    border-color: #b48a5a;
+    background: #fdf6ea;
+  }
+  .icon {
+    font-size: 28px;
+  }
+  #reveal {
+    display: none;
+    margin-top: 28px;
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #d3d1c7;
+    padding: 24px;
+    text-align: left;
+  }
+  #reveal p {
+    margin: 0;
+    line-height: 1.7;
+    color: #2c2c2a;
+    font-size: 17px;
+    white-space: pre-wrap;
+  }
+  #status {
+    margin-top: 16px;
+    font-size: 13px;
+    color: #6b6a63;
+    min-height: 18px;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Three envelopes. Pick one.</h1>
+    <p class="sub">The other two stay sealed &mdash; forever.</p>
+    <div class="envelopes" id="envelopes">
+      <button class="envelope" data-id="1"><span class="icon">✉️</span>Envelope 1</button>
+      <button class="envelope" data-id="2"><span class="icon">✉️</span>Envelope 2</button>
+      <button class="envelope" data-id="3"><span class="icon">✉️</span>Envelope 3</button>
+    </div>
+    <div id="status"></div>
+    <div id="reveal">
+      <p id="reveal-text"></p>
+    </div>
+  </div>
+
+<script>
+// Point this at your deployed Vercel Serverless Function endpoint.
+// If this page is served from the SAME Vercel project as the functions,
+// leave this as-is — it will just work.
+const API_BASE = "/api";
+
+const envelopesEl = document.getElementById('envelopes');
+const statusEl = document.getElementById('status');
+const revealEl = document.getElementById('reveal');
+const revealTextEl = document.getElementById('reveal-text');
+
+async function loadState() {
+  statusEl.textContent = "Loading...";
+  try {
+    const res = await fetch(`${API_BASE}/state`);
+    const data = await res.json();
+    statusEl.textContent = "";
+    applyState(data);
+  } catch (err) {
+    statusEl.textContent = "Could not load. Refresh the page.";
+  }
+}
+
+function applyState(data) {
+  // data = { opened: boolean, openedId: number|null, message: string|null }
+  const buttons = envelopesEl.querySelectorAll('button.envelope');
+  buttons.forEach(btn => {
+    const id = Number(btn.dataset.id);
+    if (data.opened) {
+      btn.disabled = true;
+      if (id === data.openedId) {
+        btn.classList.add('chosen');
+      }
+    }
+  });
+  if (data.opened && data.message) {
+    revealTextEl.textContent = data.message;
+    revealEl.style.display = 'block';
+  }
+}
+
+async function pickEnvelope(id) {
+  const buttons = envelopesEl.querySelectorAll('button.envelope');
+  buttons.forEach(b => b.disabled = true);
+  statusEl.textContent = "Opening...";
+  try {
+    const res = await fetch(`${API_BASE}/choose`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id })
+    });
+    const data = await res.json();
+    statusEl.textContent = "";
+    applyState(data);
+  } catch (err) {
+    statusEl.textContent = "Something went wrong. Refresh and try again.";
+    buttons.forEach(b => b.disabled = false);
+  }
+}
+
+envelopesEl.querySelectorAll('button.envelope').forEach(btn => {
+  btn.addEventListener('click', () => pickEnvelope(Number(btn.dataset.id)));
+});
+
+loadState();
+</script>
+</body>
+</html>
