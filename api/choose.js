@@ -1,9 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -66,6 +66,7 @@ export default async function handler(req, res) {
       message: updated.message
     });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to choose envelope' });
+    console.error('Detailed error in /api/choose:', err);
+    res.status(500).json({ error: 'Failed to choose envelope', details: err.message });
   }
 }
